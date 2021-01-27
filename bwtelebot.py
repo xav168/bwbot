@@ -30,12 +30,16 @@ class User(Base):
         self.phone = None
         self.passtype = None
 
+users = session.query(User).all()
 
 @bot.message_handler(commands=['start'])
 def handle_start_help(message):
     chat_id = message.chat.id
-    msg = bot.reply_to(message, "Hello, to start please type in your name")
-    bot.register_next_step_handler(msg, process_name)
+    if chat_id in users.chatid:
+        bot.reply_to(message, "Do /picktime to pick your timeslot")
+    else: 
+        msg = bot.reply_to(message, "Hello, to start please type in your name")
+        bot.register_next_step_handler(msg, process_name)
 
 def process_name(message):
     try:
@@ -85,9 +89,17 @@ def process_passtype(message):
     passtype = message.text
     user = user_dict[chat_id]
     user.passtype = passtype
-    bot.send_message(chat_id, "USER: %s" %user.name + "\nEMAIL: %s" %user.email + "\nHP: %s" %user.phone + "\nPass: %s" %user.passtype)
+    bot.send_message(chat_id, "You have been registered.Do /picktime to choose a time." )
     session.add(user)
     session.commit()
+
+@bot.message_handler(commands=['picktime'])
+def picktime(message):
+    chat_id = message.chat.id
+    if chat_id not in users.chatid:
+        bot.reply_to(message, "You have not been registered, do /start to begin registration.")
+    else:
+        msg = bot.reply_to(message, "Please choose a timeslot, ")
 
 bot.enable_save_next_step_handlers(delay=2)
 
