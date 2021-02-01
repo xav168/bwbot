@@ -20,6 +20,7 @@ bot = telebot.TeleBot(token=bot_token)
 Base = declarative_base()
 PATH = r"C:\Users\Owner\Downloads\chromedriver_win32\chromedriver.exe"
 dbdriver = webdriver.Chrome(PATH)
+driver = webdriver.Chrome(PATH)
 
 class User(Base):
 
@@ -168,6 +169,57 @@ def updatedb():
         dbdriver.close()
     session.commit()
 
+def booksl(day, user_slotid, user_name, user_email, user_HP, user_pass):
+    driver.get("https://www.picktime.com/566fe29b-2e46-4a73-ad85-c16bfc64b34b")
+    wait = WebDriverWait(driver,10)
+    popup = driver.find_element_by_xpath('/html/body/div[2]/div[6]/div/div/div[1]/button/span')
+    popup.click()
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')))
+    weekday = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
+    weekend = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')
+    if day == "weekday":
+        weekday.click()
+    if day == "weekend":
+        weekend.click()
+
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+    month = driver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[1]/div').text
+    #if d_month not in month:
+        #next_month = driver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
+        #next_month.click()
+        #time.sleep(0.5)
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+    slots = driver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
+    for slot in slots:
+        text = slot.text
+        line = text.split("\n")
+        line.remove("- Boulder World")
+        dates = text.split(" (GMT+8:00) Asia/Singapore ")
+        timesl = str(dates[0])
+        avail = dates[1]        
+        full_id = slot.get_attribute('data-date')
+        id = full_id[0:12]            
+        if user_slotid == id:
+            if avail[1] != "0":
+                try:
+                    slot.click()
+                    name = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[1]/input')
+                    email = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[2]/input')
+                    hp = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[3]/div/input')
+                    sp = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[4]/input')
+                    submit = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[6]/button')
+                    name.send_keys(user_name)
+                    email.send_keys(user_email)
+                    hp.send_keys(user_HP)
+                    sp.send_keys(user_pass)
+                    break
+                except ElementClickInterceptedException:
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")                         
+            else:
+                driver.refresh()
+                booksl()
+                
 @bot.message_handler(commands=['start'])
 def handle_start_help(message):
     chat_id = message.chat.id
@@ -264,6 +316,14 @@ def book(message):
     user = session.query(User).get(chat_id)
     user.slotid = str(timeslot).split("'")[1]
     session.commit()
+    user_name = user.name
+    user_email = user.email
+    user_HP = user.phone
+    user_pass = user.passtype
+    user_slotid = user.slotid
+    day = temp[0]
+
+    booksl(day=day, user_slotid=user_slotid, user_name=user_name, user_email=user_email, user_HP=user_HP, user_pass=user_pass)
     bot.reply_to(message, "Your slot has been booked.")
 
 bot.enable_save_next_step_handlers(delay=2)
