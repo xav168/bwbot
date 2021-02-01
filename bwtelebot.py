@@ -1,14 +1,26 @@
 import telebot
-import time
 from telebot import types
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from sqlalchemy import create_engine
 from sqlalchemy import Column
 from sqlalchemy import String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Time
 from sqlalchemy import text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
+from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.common.exceptions import NoSuchElementException
 
+bot_token = r"1499123388:AAHEYgPe21c5MXUDzBHNuOB6Hxymv0hHWdU"
+bot = telebot.TeleBot(token=bot_token)
 Base = declarative_base()
+PATH = r"C:\Users\Owner\Downloads\chromedriver_win32\chromedriver.exe"
+dbdriver = webdriver.Chrome(PATH)
+
 class User(Base):
 
     __tablename__ = "users"
@@ -26,6 +38,7 @@ class User(Base):
         self.phone = None
         self.passtype = None
         self.slotid = None
+
 class Timeslot(Base):
     __tablename__ = "timeslots"
     id = Column(String, primary_key=True)
@@ -41,14 +54,120 @@ class Timeslot(Base):
 
 engine = create_engine("sqlite:///users_db.db", connect_args={'check_same_thread': False}, echo=True)
 session = sessionmaker(bind=engine)()
-Base = declarative_base()
-bot_token = r"1499123388:AAHEYgPe21c5MXUDzBHNuOB6Hxymv0hHWdU"
-bot = telebot.TeleBot(token=bot_token)
 user_dict = {}
 temp = []
 
+Base.metadata.drop_all(bind=engine, tables=[Timeslot.__table__])     
 Base.metadata.create_all(bind=engine)
+
 users = session.query(User).all()
+user_name = ''
+user_email = ''
+user_HP = ''
+user_pass = ''
+timeslots = session.query(Timeslot).all()
+
+def updatedb():
+    dbdriver.get("https://www.picktime.com/566fe29b-2e46-4a73-ad85-c16bfc64b34b")
+    wait = WebDriverWait(dbdriver,10)
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[6]/div/div/div[1]/button/span')))
+    popup = dbdriver.find_element_by_xpath('/html/body/div[2]/div[6]/div/div/div[1]/button/span')
+    popup.click()
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')))
+    weekday = dbdriver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
+    weekday.click()
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+    slots = dbdriver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
+    for slot in slots:
+        text = slot.text
+        line = text.split('\n')
+        line.remove("- Boulder World")
+        timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
+        date = timesl.split(',')[0]
+        tme = timesl.split(',')[1]
+        
+        full_id = slot.get_attribute('data-date')
+        id = full_id[0:12]
+        timeslot = Timeslot(id)
+        timeslot.day = "weekday"
+        timeslot.date = date
+        timeslot.time = tme
+        session.add(timeslot)
+    try:
+        next = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
+        next.click()
+        time.sleep(0.5)
+        wait.until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+        slots2 = dbdriver.find_elements_by_xpath('/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')
+        for slot in slots2:
+            text = slot.text
+            line = text.split('\n')
+            line.remove("- Boulder World")
+            timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
+            date = timesl.split(',')[0]
+            tme = timesl.split(',')[1]
+
+            full_id = slot.get_attribute('data-date')
+            id = full_id[0:12]
+            timeslot = Timeslot(id)
+            timeslot.day = "weekday"
+            timeslot.date = date
+            timeslot.time = tme
+            session.add(timeslot)
+
+        back = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/ul/li[1]/a/span')
+        back.click()
+    except NoSuchElementException:
+        back = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/ul/li[1]/a/span')
+        back.click()
+
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
+    weekend = dbdriver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')
+    weekend.click()
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+    slots = dbdriver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
+    for slot in slots:
+        text = slot.text
+        line = text.split('\n')
+        line.remove("- Boulder World")
+        timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
+        date = timesl.split(',')[0]
+        tme = timesl.split(',')[1]
+        
+        full_id = slot.get_attribute('data-date')
+        id = full_id[0:12]
+        timeslot = Timeslot(id)
+        timeslot.day = "weekend"
+        timeslot.date = date
+        timeslot.time = tme
+        session.add(timeslot)
+    try:
+        next = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
+        next.click()
+        time.sleep(0.5)
+        wait.until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+        slots2 = dbdriver.find_elements_by_xpath('/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')
+        for slot in slots2:
+            text = slot.text
+            line = text.split('\n')
+            line.remove("- Boulder World")
+            timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
+            date = timesl.split(',')[0]
+            tme = timesl.split(',')[1]
+            
+            full_id = slot.get_attribute('data-date')
+            id = full_id[0:12]
+            timeslot = Timeslot(id)
+            timeslot.day = "weekend"
+            timeslot.date = date
+            timeslot.time = tme
+            session.add(timeslot)
+        dbdriver.close()             
+    except NoSuchElementException:
+        dbdriver.close()
+    session.commit()
+
 @bot.message_handler(commands=['start'])
 def handle_start_help(message):
     chat_id = message.chat.id
@@ -112,6 +231,7 @@ def process_passtype(message):
 
 @bot.message_handler(commands=['picktime'])
 def picktime(message):
+    updatedb()
     chat_id = message.chat.id
     day = types.ReplyKeyboardMarkup(row_width=1, one_time_keyboard=True)
     day.add('weekday', 'weekend')
