@@ -6,14 +6,9 @@ from sqlalchemy import Column
 from sqlalchemy import String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
-engine = create_engine("sqlite:///users_db.db")
-session = sessionmaker(bind=engine)()
 Base = declarative_base()
-bot_token = r"1499123388:AAHEYgPe21c5MXUDzBHNuOB6Hxymv0hHWdU"
-bot = telebot.TeleBot(token=bot_token)
-user_dict = {}
-
 class User(Base):
 
     __tablename__ = "users"
@@ -22,6 +17,7 @@ class User(Base):
     email = Column(String)
     phone = Column(String)
     passtype = Column(String)
+    slotid = Column(String)
 
     def __init__(self, name, chat_id):
         self.chatid = chat_id
@@ -29,13 +25,34 @@ class User(Base):
         self.email = None
         self.phone = None
         self.passtype = None
+        self.slotid = None
+class Timeslot(Base):
+    __tablename__ = "timeslots"
+    id = Column(String, primary_key=True)
+    day = Column(String)
+    date = Column(String)
+    time = Column(String)
 
+    def __init__(self, id):
+        self.id = id
+        self.day = None
+        self.time = None
+        self.date = None
+
+engine = create_engine("sqlite:///users_db.db", connect_args={'check_same_thread': False}, echo=True)
+session = sessionmaker(bind=engine)()
+Base = declarative_base()
+bot_token = r"1499123388:AAHEYgPe21c5MXUDzBHNuOB6Hxymv0hHWdU"
+bot = telebot.TeleBot(token=bot_token)
+user_dict = {}
+temp = []
+
+Base.metadata.create_all(bind=engine)
 users = session.query(User).all()
-
 @bot.message_handler(commands=['start'])
 def handle_start_help(message):
     chat_id = message.chat.id
-    if chat_id in users.chatid:
+    if chat_id in users:
         bot.reply_to(message, "Do /picktime to pick your timeslot")
     else: 
         msg = bot.reply_to(message, "Hello, to start please type in your name")
@@ -96,10 +113,38 @@ def process_passtype(message):
 @bot.message_handler(commands=['picktime'])
 def picktime(message):
     chat_id = message.chat.id
-    if chat_id not in users.chatid:
-        bot.reply_to(message, "You have not been registered, do /start to begin registration.")
-    else:
-        msg = bot.reply_to(message, "Please choose a timeslot, ")
+    day = types.ReplyKeyboardMarkup(row_width=1, one_time_keyboard=True)
+    day.add('weekday', 'weekend')
+    msg = bot.reply_to(message, "Please choose a timeslot " ,reply_markup=day)
+    bot.register_next_step_handler(msg, pickslot)
+def pickslot(message):
+    temp.append(message.text)
+    timeslots = session.query('date').from_statement(text("SELECT DISTINCT date FROM timeslots where day=:day")).params(day=temp[0]).all()
+    date = types.ReplyKeyboardMarkup(row_width=5, one_time_keyboard=True)
+    for slot in timeslots:
+        strslot = str(slot)
+        txt = strslot.split("'")[1]
+        date.add(txt)
+    msg = bot.reply_to(message, "Please chose a date,", reply_markup=date)
+    bot.register_next_step_handler(msg, picktme)
+def picktme(message):
+    temp.append(message.text)
+    timeslots = session.query("time").from_statement(text("SELECT DISTINCT time FROM timeslots WHERE day=:day AND date=:date")).params(day=temp[0], date=temp[1]).all()
+    ts_markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
+    for slot in timeslots:
+        strslot = str(slot)
+        txt = strslot.split("'")[1]
+        ts_markup.add(txt)
+    msg = bot.reply_to(message, "Please pick a time", reply_markup=ts_markup)
+    bot.register_next_step_handler(msg, book)
+def book(message):
+    chat_id = message.chat.id
+    temp.append(message.text)
+    timeslot = session.query('id').from_statement(text("SELECT id FROM timeslots WHERE day=:day AND date=:date AND time LIKE :time")).params(day=temp[0], date=temp[1], time=('%'+ temp[2])).first()
+    user = session.query(User).get(chat_id)
+    user.slotid = str(timeslot).split("'")[1]
+    session.commit()
+    bot.reply_to(message, "Your slot has been booked.")
 
 bot.enable_save_next_step_handlers(delay=2)
 

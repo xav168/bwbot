@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from sqlalchemy import create_engine
 from sqlalchemy import Column
 from sqlalchemy import String
+from sqlalchemy import Time
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from selenium.webdriver.chrome.options import Options
@@ -34,6 +35,7 @@ class User(Base):
     email = Column(String)
     phone = Column(String)
     passtype = Column(String)
+    slotid = Column(String)
 
     def __init__(self, name, chat_id):
         self.chatid = chat_id
@@ -41,6 +43,7 @@ class User(Base):
         self.email = None
         self.phone = None
         self.passtype = None
+        self.slotid = None
 
 
 class Timeslot(Base):
@@ -55,35 +58,59 @@ class Timeslot(Base):
         self.day = None
         self.time = None
         self.date = None
-    
+Base.metadata.drop_all(bind=engine, tables=[Timeslot.__table__])     
+Base.metadata.create_all(bind=engine)
+
 users = session.query(User).all()
 user_name = ''
 user_email = ''
 user_HP = ''
 user_pass = ''
 timeslots = session.query(Timeslot).all()
-Base.metadata.create_all(bind=engine)
+
+
 
 def updatedb():
-        dbdriver.get("https://www.picktime.com/566fe29b-2e46-4a73-ad85-c16bfc64b34b")
-        wait = WebDriverWait(dbdriver,10)
-        wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[6]/div/div/div[1]/button/span')))
-        popup = dbdriver.find_element_by_xpath('/html/body/div[2]/div[6]/div/div/div[1]/button/span')
-        popup.click()
-        wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')))
-        weekday = dbdriver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')
-        wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
-        weekday.click()
-        wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
-        slots = dbdriver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
-        for slot in slots:
+    dbdriver.get("https://www.picktime.com/566fe29b-2e46-4a73-ad85-c16bfc64b34b")
+    wait = WebDriverWait(dbdriver,10)
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[6]/div/div/div[1]/button/span')))
+    popup = dbdriver.find_element_by_xpath('/html/body/div[2]/div[6]/div/div/div[1]/button/span')
+    popup.click()
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')))
+    weekday = dbdriver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
+    weekday.click()
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+    slots = dbdriver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
+    for slot in slots:
+        text = slot.text
+        line = text.split('\n')
+        line.remove("- Boulder World")
+        timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
+        date = timesl.split(',')[0]
+        tme = timesl.split(',')[1]
+        
+        full_id = slot.get_attribute('data-date')
+        id = full_id[0:12]
+        timeslot = Timeslot(id)
+        timeslot.day = "weekday"
+        timeslot.date = date
+        timeslot.time = tme
+        session.add(timeslot)
+    try:
+        next = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
+        next.click()
+        time.sleep(0.5)
+        wait.until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+        slots2 = dbdriver.find_elements_by_xpath('/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')
+        for slot in slots2:
             text = slot.text
             line = text.split('\n')
             line.remove("- Boulder World")
             timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
             date = timesl.split(',')[0]
             tme = timesl.split(',')[1]
-            
+
             full_id = slot.get_attribute('data-date')
             id = full_id[0:12]
             timeslot = Timeslot(id)
@@ -91,40 +118,40 @@ def updatedb():
             timeslot.date = date
             timeslot.time = tme
             session.add(timeslot)
-        try:
-            next = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
-            next.click()
-            time.sleep(0.5)
-            wait.until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
-            slots2 = dbdriver.find_elements_by_xpath('/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')
-            for slot in slots2:
-                text = slot.text
-                line = text.split('\n')
-                line.remove("- Boulder World")
-                timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
-                date = timesl.split(',')[0]
-                tme = timesl.split(',')[1]
 
-                full_id = slot.get_attribute('data-date')
-                id = full_id[0:12]
-                timeslot = Timeslot(id)
-                timeslot.day = "weekday"
-                timeslot.date = date
-                timeslot.time = tme
-                session.add(timeslot)
+        back = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/ul/li[1]/a/span')
+        back.click()
+    except NoSuchElementException:
+        back = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/ul/li[1]/a/span')
+        back.click()
 
-            back = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/ul/li[1]/a/span')
-            back.click()
-        except NoSuchElementException:
-            back = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/ul/li[1]/a/span')
-            back.click()
-
-        wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
-        weekend = dbdriver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')
-        weekend.click()
-        wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
-        slots = dbdriver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
-        for slot in slots:
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
+    weekend = dbdriver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')
+    weekend.click()
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+    slots = dbdriver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
+    for slot in slots:
+        text = slot.text
+        line = text.split('\n')
+        line.remove("- Boulder World")
+        timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
+        date = timesl.split(',')[0]
+        tme = timesl.split(',')[1]
+        
+        full_id = slot.get_attribute('data-date')
+        id = full_id[0:12]
+        timeslot = Timeslot(id)
+        timeslot.day = "weekend"
+        timeslot.date = date
+        timeslot.time = tme
+        session.add(timeslot)
+    try:
+        next = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
+        next.click()
+        time.sleep(0.5)
+        wait.until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+        slots2 = dbdriver.find_elements_by_xpath('/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')
+        for slot in slots2:
             text = slot.text
             line = text.split('\n')
             line.remove("- Boulder World")
@@ -139,30 +166,9 @@ def updatedb():
             timeslot.date = date
             timeslot.time = tme
             session.add(timeslot)
-        try:
-            next = dbdriver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
-            next.click()
-            time.sleep(0.5)
-            wait.until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
-            slots2 = dbdriver.find_elements_by_xpath('/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')
-            for slot in slots2:
-                text = slot.text
-                line = text.split('\n')
-                line.remove("- Boulder World")
-                timesl = text.split(" (GMT+8:00) Asia/Singapore ")[0]
-                date = timesl.split(',')[0]
-                tme = timesl.split(',')[1]
-                
-                full_id = slot.get_attribute('data-date')
-                id = full_id[0:12]
-                timeslot = Timeslot(id)
-                timeslot.day = "weekend"
-                timeslot.date = date
-                timeslot.time = tme
-                session.add(timeslot)
-            dbdriver.close()             
-        except NoSuchElementException:
-            dbdriver.close()
+        dbdriver.close()             
+    except NoSuchElementException:
+        dbdriver.close()
     
 
         
