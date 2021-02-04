@@ -14,13 +14,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import StaleElementReferenceException
 
 bot_token = r"1499123388:AAHEYgPe21c5MXUDzBHNuOB6Hxymv0hHWdU"
 bot = telebot.TeleBot(token=bot_token)
 Base = declarative_base()
 PATH = r"C:\Users\Owner\Downloads\chromedriver_win32\chromedriver.exe"
-dbdriver = webdriver.Chrome(PATH)
-driver = webdriver.Chrome(PATH)
 
 class User(Base):
 
@@ -53,13 +52,20 @@ class Timeslot(Base):
         self.time = None
         self.date = None
 
+class TS():
+    def __init__(self,id):
+        self.id = id
+        self.day = None
+        self.time = None
+        self.date = None
+
+
 engine = create_engine("sqlite:///users_db.db", connect_args={'check_same_thread': False}, echo=True)
 session = sessionmaker(bind=engine)()
 user_dict = {}
-temp = []
+temp = {}
 
-Base.metadata.drop_all(bind=engine, tables=[Timeslot.__table__])     
-Base.metadata.create_all(bind=engine)
+
 
 users = session.query(User).all()
 user_name = ''
@@ -69,15 +75,29 @@ user_pass = ''
 timeslots = session.query(Timeslot).all()
 
 def updatedb():
+    dbdriver = webdriver.Chrome(PATH)
     dbdriver.get("https://www.picktime.com/566fe29b-2e46-4a73-ad85-c16bfc64b34b")
     wait = WebDriverWait(dbdriver,10)
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[6]/div/div/div[1]/button/span')))
     popup = dbdriver.find_element_by_xpath('/html/body/div[2]/div[6]/div/div/div[1]/button/span')
-    popup.click()
+    attempts = 0
+    while attempts < 2:
+        try:
+            popup.click()
+            break
+        except StaleElementReferenceException as e:
+            attempts+=1
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')))
     weekday = dbdriver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
-    weekday.click()
+    attempts = 0
+    while attempts < 2:
+        try:
+            weekday.click()
+            break
+        except StaleElementReferenceException as e:
+            attempts+=1
+
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
     slots = dbdriver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
     for slot in slots:
@@ -125,7 +145,14 @@ def updatedb():
 
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
     weekend = dbdriver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')
-    weekend.click()
+    attempts = 0
+    while attempts < 2:
+        try:
+            weekend.click()
+            break
+        except StaleElementReferenceException as e:
+            attempts+=1
+
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
     slots = dbdriver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
     for slot in slots:
@@ -169,162 +196,246 @@ def updatedb():
         dbdriver.close()
     session.commit()
 
-def booksl(day, user_slotid, user_name, user_email, user_HP, user_pass):
+def booksl(day, user_slotid, user_name, user_email, user_HP, user_pass, user_month):
+    driver = webdriver.Chrome(PATH)
     driver.get("https://www.picktime.com/566fe29b-2e46-4a73-ad85-c16bfc64b34b")
     wait = WebDriverWait(driver,10)
     popup = driver.find_element_by_xpath('/html/body/div[2]/div[6]/div/div/div[1]/button/span')
-    popup.click()
+    attempts = 0
+    while attempts < 2:
+        try:
+            popup.click()
+            break
+        except StaleElementReferenceException as e:
+            attempts +=1
+
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')))
     weekday = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[1]/div[2]')
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')))
     weekend = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/ul/li[2]/div[2]')
     if day == "weekday":
-        weekday.click()
+        attempts = 0
+        while attempts < 2:
+            try:
+                weekday.click()
+                break
+            except StaleElementReferenceException as e:
+                attempts +=1
+
     if day == "weekend":
-        weekend.click()
+        attempts = 0
+        while attempts < 2:
+            try:
+                weekend.click()
+                break
+            except StaleElementReferenceException as e:
+                attempts +=1
 
     wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
     month = driver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[1]/div').text
-    #if d_month not in month:
-        #next_month = driver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
-        #next_month.click()
-        #time.sleep(0.5)
-    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
+    if user_month not in month:
+        next_month = driver.find_element_by_xpath('//*[@id="booking-content"]/div[2]/div[1]/div/div[2]/i')
+        next_month.click()
+        time.sleep(0.5)
     slots = driver.find_elements_by_xpath('//*[@id="booking-content"]/div[2]/div[2]/div/ul/li')
+    wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[2]/div[2]/div/ul/li')))
     for slot in slots:
         text = slot.text
         line = text.split("\n")
         line.remove("- Boulder World")
         dates = text.split(" (GMT+8:00) Asia/Singapore ")
-        timesl = str(dates[0])
         avail = dates[1]        
         full_id = slot.get_attribute('data-date')
         id = full_id[0:12]            
         if user_slotid == id:
             if avail[1] != "0":
-                try:
-                    slot.click()
-                    name = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[1]/input')
-                    email = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[2]/input')
-                    hp = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[3]/div/input')
-                    sp = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[4]/input')
-                    submit = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[6]/button')
-                    name.send_keys(user_name)
-                    email.send_keys(user_email)
-                    hp.send_keys(user_HP)
-                    sp.send_keys(user_pass)
-                    break
-                except ElementClickInterceptedException:
-                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")                         
+                attempts = 0
+                while attempts < 2:
+                    try:
+                        slot.click()
+                        break
+                    except StaleElementReferenceException as e:
+                        attempts += 1
+                    except ElementClickInterceptedException:
+                        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                        slot.click()
+                        break
+                name = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[1]/input')
+                email = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[2]/input')
+                hp = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[3]/div/input')
+                sp = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[4]/input')
+                submit = driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[2]/div[1]/div/div[6]/button')
+                name.send_keys(user_name)
+                email.send_keys(user_email)
+                hp.send_keys(user_HP)
+                sp.send_keys(user_pass)
+                time.sleep(5)
+                driver.close()      
+                break; 
+                                
             else:
                 driver.refresh()
-                booksl()
+                booksl(day=day, user_slotid=user_slotid, user_name=user_name, user_email=user_email, user_HP=user_HP, user_pass=user_pass, user_month=user_month )
                 
 @bot.message_handler(commands=['start'])
 def handle_start_help(message):
-    chat_id = message.chat.id
-    if chat_id in users:
-        bot.reply_to(message, "Do /picktime to pick your timeslot")
-    else: 
-        msg = bot.reply_to(message, "Hello, to start please type in your name")
-        bot.register_next_step_handler(msg, process_name)
+    if message.text =="/cancel":
+        msg = bot.reply_to(message, "Do /start to start again ")
+        bot.register_next_step_handler(msg, cancel_reg)
+    else:
+        chat_id = message.chat.id
+        users = session.query('chatid').from_statement(text("SELECT * FROM users WHERE chatid=:id")).params(id=chat_id).all()
+        if len(users) != 0:
+            bot.reply_to(message, "Do /picktime to pick your timeslot")
+        else: 
+            msg = bot.reply_to(message, "Hello, to start please type in your name, do /cancel to cancel registration")
+            bot.register_next_step_handler(msg, process_name)
 
 def process_name(message):
     try:
-        chat_id = message.chat.id
-        name = message.text
-        user = User(name, chat_id)
-        user_dict[chat_id] = user
-        msg = bot.reply_to(message, "Please enter your email")
-        bot.register_next_step_handler(msg, process_email)
+        if message.text =="/cancel":
+            msg = bot.reply_to(message, "Do /start to start again ")
+            bot.register_next_step_handler(msg, cancel_reg)
+        else:
+            chat_id = message.chat.id
+            name = message.text
+            user = User(name, chat_id)
+            user_dict[chat_id] = user
+            msg = bot.reply_to(message, "Please enter your email")
+            bot.register_next_step_handler(msg, process_email)
     except Exception as e:
         bot.reply_to(message, 'oops something went wrong')
-
 def process_email(message):
     try:
-        chat_id = message.chat.id
-        email = message.text
-        if '@' and '.com' not in email:
-            msg = bot.reply_to(message, "Please enter a valid email")
-            bot.register_next_step_handler(msg, process_email)
-            return
-        user = user_dict[chat_id]
-        user.email = email
-        msg = bot.reply_to(message, "Please enter your mobile number")
-        bot.register_next_step_handler(msg, process_hp)
+        if message.text =="/cancel":
+            msg = bot.reply_to(message, "Do /start to start again ")
+            bot.register_next_step_handler(msg, cancel_reg)
+        else:
+            chat_id = message.chat.id
+            email = message.text
+            if '@' and '.com' not in email:
+                msg = bot.reply_to(message, "Please enter a valid email")
+                bot.register_next_step_handler(msg, process_email)
+                return
+            user = user_dict[chat_id]
+            user.email = email
+            msg = bot.reply_to(message, "Please enter your mobile number")
+            bot.register_next_step_handler(msg, process_hp)
     except Exception as e:
-        bot.reply_to(message, "oops something went wrong")
-    
+        bot.reply_to(message, "oops something went wrong")    
 def process_hp(message):
     try:
-        chat_id = message.chat.id
-        phone = message.text
-        if not phone.isdigit():
-            msg = bot.reply_to(message, "Please enter a valid mobile number")
-            bot.register_next_step_handler(msg, process_hp)
-            return
-        user = user_dict[chat_id]
-        user.phone = phone
-        markup = types.ReplyKeyboardMarkup(row_width=1, one_time_keyboard=True)
-        markup.add('SP' , 'MP')
-        msg = bot.reply_to(message, "Please choose your type of pass", reply_markup=markup)
-        bot.register_next_step_handler(msg, process_passtype)
+        if message.text =="/cancel":
+            msg = bot.reply_to(message, "Do /start to start again ")
+            bot.register_next_step_handler(msg, cancel_reg)
+        else:
+            chat_id = message.chat.id
+            phone = message.text
+            if not phone.isdigit():
+                msg = bot.reply_to(message, "Please enter a valid mobile number")
+                bot.register_next_step_handler(msg, process_hp)
+                return
+            user = user_dict[chat_id]
+            user.phone = phone
+            markup = types.ReplyKeyboardMarkup(row_width=1, one_time_keyboard=True)
+            markup.add('SP' , 'MP')
+            msg = bot.reply_to(message, "Please choose your type of pass", reply_markup=markup)
+            bot.register_next_step_handler(msg, process_passtype)
     except Exception as e:
         bot.reply_to(message, "oops something went wrong")
-
 def process_passtype(message):
+    if message.text =="/cancel":
+        msg = bot.reply_to(message, "Do /start to start again ")
+        bot.register_next_step_handler(msg, cancel_reg)
+    else:
+        chat_id = message.chat.id
+        passtype = message.text
+        user = user_dict[chat_id]
+        user.passtype = passtype
+        bot.send_message(chat_id, "You have been registered.Do /picktime to choose a time." )
+        session.add(user)
+        session.commit()
+def cancel_reg(message):
     chat_id = message.chat.id
-    passtype = message.text
-    user = user_dict[chat_id]
-    user.passtype = passtype
-    bot.send_message(chat_id, "You have been registered.Do /picktime to choose a time." )
-    session.add(user)
-    session.commit()
+    user_dict.pop(chat_id)
 
 @bot.message_handler(commands=['picktime'])
 def picktime(message):
-    updatedb()
-    chat_id = message.chat.id
-    day = types.ReplyKeyboardMarkup(row_width=1, one_time_keyboard=True)
-    day.add('weekday', 'weekend')
-    msg = bot.reply_to(message, "Please choose a timeslot " ,reply_markup=day)
-    bot.register_next_step_handler(msg, pickslot)
+    try:
+        Base.metadata.drop_all(bind=engine, tables=[Timeslot.__table__])     
+        Base.metadata.create_all(bind=engine)
+        updatedb()
+        day = types.ReplyKeyboardMarkup(row_width=1, one_time_keyboard=True)
+        day.add('weekday', 'weekend')
+        msg = bot.reply_to(message, "Please choose a timeslot " ,reply_markup=day)
+        bot.register_next_step_handler(msg, pickslot)
+    except Exception as e:
+        print(str(e))
+        msg = bot.reply_to(message, "Something went wrong. Please try again")
 def pickslot(message):
-    temp.append(message.text)
-    timeslots = session.query('date').from_statement(text("SELECT DISTINCT date FROM timeslots where day=:day")).params(day=temp[0]).all()
-    date = types.ReplyKeyboardMarkup(row_width=5, one_time_keyboard=True)
-    for slot in timeslots:
-        strslot = str(slot)
-        txt = strslot.split("'")[1]
-        date.add(txt)
-    msg = bot.reply_to(message, "Please chose a date,", reply_markup=date)
-    bot.register_next_step_handler(msg, picktme)
+    try:
+        chat_id = message.chat.id
+        ts_reg = TS(id=chat_id)
+        temp[chat_id] = ts_reg
+        ts = temp[chat_id]
+        day = message.text
+        ts.day = day
+        timeslots = session.query('date').from_statement(text("SELECT DISTINCT date FROM timeslots where day=:day")).params(day=ts.day).all()
+        date = types.ReplyKeyboardMarkup(row_width=5, one_time_keyboard=True)
+        for slot in timeslots:
+            strslot = str(slot)
+            txt = strslot.split("'")[1]
+            date.add(txt)
+        msg = bot.reply_to(message, "Please chose a date,", reply_markup=date)
+        bot.register_next_step_handler(msg, picktme)
+    except Exception as e:
+        chat_id = message.chat.id
+        del temp[chat_id]
+        msg = bot.reply_to(message, "Something went wrong. Please try again")
+        bot.register_next_step_handler(msg, picktime)
 def picktme(message):
-    temp.append(message.text)
-    timeslots = session.query("time").from_statement(text("SELECT DISTINCT time FROM timeslots WHERE day=:day AND date=:date")).params(day=temp[0], date=temp[1]).all()
-    ts_markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
-    for slot in timeslots:
-        strslot = str(slot)
-        txt = strslot.split("'")[1]
-        ts_markup.add(txt)
-    msg = bot.reply_to(message, "Please pick a time", reply_markup=ts_markup)
-    bot.register_next_step_handler(msg, book)
+    try:
+        chat_id = message.chat.id
+        ts = temp[chat_id]
+        ts.date = message.text
+        timeslots = session.query("time").from_statement(text("SELECT DISTINCT time FROM timeslots WHERE day=:day AND date=:date")).params(day=ts.day, date=ts.date).all()
+        ts_markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True)
+        for slot in timeslots:
+            strslot = str(slot)
+            txt = strslot.split("'")[1]
+            ts_markup.add(txt)
+        msg = bot.reply_to(message, "Please pick a time", reply_markup=ts_markup)
+        bot.register_next_step_handler(msg, book)
+    except Exception as e:
+        chat_id = message.chat.id
+        del temp[chat_id]
+        msg = bot.reply_to(message, "Something went wrong. Please try again")
+        bot.register_next_step_handler(msg, picktime)       
 def book(message):
-    chat_id = message.chat.id
-    temp.append(message.text)
-    timeslot = session.query('id').from_statement(text("SELECT id FROM timeslots WHERE day=:day AND date=:date AND time LIKE :time")).params(day=temp[0], date=temp[1], time=('%'+ temp[2])).first()
-    user = session.query(User).get(chat_id)
-    user.slotid = str(timeslot).split("'")[1]
-    session.commit()
-    user_name = user.name
-    user_email = user.email
-    user_HP = user.phone
-    user_pass = user.passtype
-    user_slotid = user.slotid
-    day = temp[0]
+    try:
+        chat_id = message.chat.id
+        ts = temp[chat_id]
+        ts.time = message.text
+        timeslot = session.query('id').from_statement(text("SELECT id FROM timeslots WHERE day=:day AND date=:date AND time LIKE :time")).params(day=ts.day, date=ts.date, time=('%'+ (ts.time))).first()
+        user = session.query(User).get(chat_id)
+        user.slotid = str(timeslot).split("'")[1]
+        session.commit()
+        user_name = user.name
+        user_email = user.email
+        user_HP = user.phone
+        user_pass = user.passtype
+        user_slotid = user.slotid
+        user_month = ts.date.split()[1]
+        day = ts.day
 
-    booksl(day=day, user_slotid=user_slotid, user_name=user_name, user_email=user_email, user_HP=user_HP, user_pass=user_pass)
-    bot.reply_to(message, "Your slot has been booked.")
+        booksl(day=day, user_slotid=user_slotid, user_name=user_name, user_email=user_email, user_HP=user_HP, user_pass=user_pass, user_month=user_month )
+        bot.reply_to(message, "Your slot has been booked.")
+    except Exception as e:
+        print(str(e))
+        chat_id = message.chat.id
+        del temp[chat_id]
+        msg = bot.reply_to(message, "Something went wrong. Please try again")
+        bot.register_next_step_handler(msg, picktime)
 
 bot.enable_save_next_step_handlers(delay=2)
 
