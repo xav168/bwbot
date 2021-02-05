@@ -61,20 +61,13 @@ class TS():
 
 
 engine = create_engine("sqlite:///users_db.db", connect_args={'check_same_thread': False}, echo=True)
-session = sessionmaker(bind=engine)()
 user_dict = {}
 temp = {}
 
 
 
-users = session.query(User).all()
-user_name = ''
-user_email = ''
-user_HP = ''
-user_pass = ''
-timeslots = session.query(Timeslot).all()
-
 def updatedb():
+    session = sessionmaker(bind=engine)()
     dbdriver = webdriver.Chrome(PATH)
     dbdriver.get("https://www.picktime.com/566fe29b-2e46-4a73-ad85-c16bfc64b34b")
     wait = WebDriverWait(dbdriver,10)
@@ -197,6 +190,7 @@ def updatedb():
     session.commit()
 
 def booksl(day, user_slotid, user_name, user_email, user_HP, user_pass, user_month):
+    session = sessionmaker(bind=engine)()
     driver = webdriver.Chrome(PATH)
     driver.get("https://www.picktime.com/566fe29b-2e46-4a73-ad85-c16bfc64b34b")
     wait = WebDriverWait(driver,10)
@@ -269,16 +263,19 @@ def booksl(day, user_slotid, user_name, user_email, user_HP, user_pass, user_mon
                 email.send_keys(user_email)
                 hp.send_keys(user_HP)
                 sp.send_keys(user_pass)
+                submit.click()
                 time.sleep(5)
-                driver.close()      
+                driver.close()
+                session.close()  
                 break; 
                                 
             else:
-                driver.refresh()
+                driver.close()
                 booksl(day=day, user_slotid=user_slotid, user_name=user_name, user_email=user_email, user_HP=user_HP, user_pass=user_pass, user_month=user_month )
                 
 @bot.message_handler(commands=['start'])
 def handle_start_help(message):
+    session = sessionmaker(bind=engine)()
     if message.text =="/cancel":
         msg = bot.reply_to(message, "Do /start to start again ")
         bot.register_next_step_handler(msg, cancel_reg)
@@ -355,6 +352,7 @@ def process_passtype(message):
         bot.send_message(chat_id, "You have been registered.Do /picktime to choose a time." )
         session.add(user)
         session.commit()
+        session.close()
 def cancel_reg(message):
     chat_id = message.chat.id
     user_dict.pop(chat_id)
@@ -374,6 +372,7 @@ def picktime(message):
         msg = bot.reply_to(message, "Something went wrong. Please try again")
 def pickslot(message):
     try:
+        session = sessionmaker(bind=engine)()
         chat_id = message.chat.id
         ts_reg = TS(id=chat_id)
         temp[chat_id] = ts_reg
@@ -388,13 +387,16 @@ def pickslot(message):
             date.add(txt)
         msg = bot.reply_to(message, "Please chose a date,", reply_markup=date)
         bot.register_next_step_handler(msg, picktme)
+        session.close()
     except Exception as e:
+        print(str(e))
         chat_id = message.chat.id
         del temp[chat_id]
         msg = bot.reply_to(message, "Something went wrong. Please try again")
-        bot.register_next_step_handler(msg, picktime)
+        bot.register_next_step_handler(msg, book_error)
 def picktme(message):
     try:
+        session = sessionmaker(bind=engine)()
         chat_id = message.chat.id
         ts = temp[chat_id]
         ts.date = message.text
@@ -406,13 +408,16 @@ def picktme(message):
             ts_markup.add(txt)
         msg = bot.reply_to(message, "Please pick a time", reply_markup=ts_markup)
         bot.register_next_step_handler(msg, book)
+        session.close()
     except Exception as e:
+        print(str(e))
         chat_id = message.chat.id
         del temp[chat_id]
         msg = bot.reply_to(message, "Something went wrong. Please try again")
-        bot.register_next_step_handler(msg, picktime)       
+        bot.register_next_step_handler(msg, book_error)       
 def book(message):
     try:
+        session = sessionmaker(bind=engine)()
         chat_id = message.chat.id
         ts = temp[chat_id]
         ts.time = message.text
@@ -430,12 +435,16 @@ def book(message):
 
         booksl(day=day, user_slotid=user_slotid, user_name=user_name, user_email=user_email, user_HP=user_HP, user_pass=user_pass, user_month=user_month )
         bot.reply_to(message, "Your slot has been booked.")
+        session.commit()
+        session.close()
     except Exception as e:
         print(str(e))
         chat_id = message.chat.id
         del temp[chat_id]
         msg = bot.reply_to(message, "Something went wrong. Please try again")
-        bot.register_next_step_handler(msg, picktime)
+        bot.register_next_step_handler(msg, book_error)
+def book_error(message):
+    bot.reply_to(message, "something went wrong Do /picktime to pick a slot")
 
 bot.enable_save_next_step_handlers(delay=2)
 
