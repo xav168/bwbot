@@ -16,7 +16,7 @@ from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
 
-bot_token = r"1499123388:AAHEYgPe21c5MXUDzBHNuOB6Hxymv0hHWdU"
+bot_token = **************
 bot = telebot.TeleBot(token=bot_token)
 Base = declarative_base()
 PATH = r"C:\Users\Owner\Downloads\chromedriver_win32\chromedriver.exe"
